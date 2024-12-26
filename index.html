@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地點距離提示</title>
+    <script>
+        let map;
+        let targetMarker = null;
+        let alertDistance = 0;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                center: { lat: 25.033964, lng: 121.564468 }, // 預設為台北市
+                zoom: 14,
+            });
+
+            map.addListener("click", (event) => {
+                setTargetLocation(event.latLng.lat(), event.latLng.lng());
+            });
+        }
+
+        function getLocation() {
+            if (!navigator.geolocation) {
+                alert("瀏覽器不支援地理定位功能。");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(position => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                document.getElementById("currentLocation").innerText = `目前位置: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                checkProximity(lat, lng);
+            }, error => {
+                alert("無法取得位置: " + error.message);
+            });
+        }
+
+        function setTargetLocation(lat, lng) {
+            if (targetMarker) {
+                targetMarker.setMap(null);
+            }
+
+            targetMarker = new google.maps.Marker({
+                position: { lat, lng },
+                map: map,
+                title: "目標地點",
+            });
+
+            map.setCenter({ lat, lng });
+            alertDistance = parseFloat(document.getElementById("distance").value) || 0;
+
+            document.getElementById("targetLocation").innerText = `目標位置: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+        }
+
+        function checkProximity(currentLat, currentLng) {
+            if (!targetMarker) {
+                return;
+            }
+
+            const distance = calculateDistance(currentLat, currentLng, targetMarker.getPosition().lat(), targetMarker.getPosition().lng());
+            if (distance <= alertDistance) {
+                playSound();
+            }
+        }
+
+        function calculateDistance(lat1, lng1, lat2, lng2) {
+            const R = 6371e3; // 地球半徑 (公尺)
+            const φ1 = lat1 * Math.PI / 180;
+            const φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180;
+            const Δλ = (lng2 - lng1) * Math.PI / 180;
+
+            const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+                      Math.cos(φ1) * Math.cos(φ2) *
+                      Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+            return R * c; // 距離 (公尺)
+        }
+
+        function playSound() {
+            const audio = new Audio("alert.mp3");
+            audio.play();
+        }
+
+        setInterval(getLocation, 5000); // 每5秒檢查一次位置
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyASJJsZ9vIQ-x56WbB0GTA816J3zDN_yXU&callback=initMap"></script>
+</head>
+<body>
+    <h1>地點距離提示</h1>
+
+    <div>
+        <h2>設定目標地點</h2>
+        <label for="distance">距離 (公尺):</label>
+        <input type="number" id="distance" step="any">
+        <p id="targetLocation">目標位置: 尚未設定</p>
+    </div>
+
+    <div>
+        <h2>目前位置</h2>
+        <p id="currentLocation">目前位置: 未知</p>
+    </div>
+
+    <div id="map" style="width: 100%; height: 500px; margin-top: 20px;"></div>
+
+    <p>注意: 請允許存取位置的權限，並輸入有效的 Google Maps API 金鑰。</p>
+</body>
+</html>
